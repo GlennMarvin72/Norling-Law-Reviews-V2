@@ -1,0 +1,126 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  STAFF
+  ADMIN
+}
+
+enum CycleStatus {
+  NOT_STARTED // cycle created, reflection not begun
+  DRAFT       // staff member has saved but not submitted
+  SUBMITTED   // reflection locked, awaiting review meeting
+  COMPLETED   // director has finalised ratings/notes/comp
+}
+
+enum QuestionType {
+  VALUE     // rating + reflection + area of focus (the six values)
+  LONGTEXT  // free text (forward focus questions)
+}
+
+enum RatingValue {
+  DEVELOPING
+  MEETING
+  EXCEEDING
+}
+
+model User {
+  id             String   @id @default(cuid())
+  email          String   @unique
+  name           String
+  position       String?
+  role           Role     @default(STAFF)
+  startDate      DateTime // anniversary drives the review date
+  active         Boolean  @default(true)
+  hasTargets     Boolean  @default(false) // billable/revenue targets apply
+  // Current comp & performance data (updated via CSV upload or admin panel)
+  salary         Float?
+  billableTarget Float?
+  billableActual Float?
+  revenueTarget  Float?
+  revenueActual  Float?
+  dataPeriod     String?  // e.g. "Jul 2025 - Jun 2026"
+  cycles         ReviewCycle[]
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model Section {
+  id        String     @id @default(cuid())
+  title     String
+  intro     String?
+  order     Int
+  active    Boolean    @default(true)
+  questions Question[]
+}
+
+model Question {
+  id             String       @id @default(cuid())
+  sectionId      String
+  section        Section      @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  order          Int
+  type           QuestionType
+  label          String       // e.g. "Value 1 - Results Focused"
+  helpText       String?      // behaviours & traits, shown under the label
+  requiresTargets Boolean     @default(false) // hidden for staff without targets
+  active         Boolean      @default(true)
+  answers        Answer[]
+}
+
+model ReviewCycle {
+  id            String      @id @default(cuid())
+  userId        String
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reviewDate    DateTime
+  status        CycleStatus @default(NOT_STARTED)
+  submittedAt   DateTime?
+  completedAt   DateTime?
+  // reminder bookkeeping
+  staffReminder3w Boolean @default(false)
+  staffReminder1w Boolean @default(false)
+  adminFlag3d     Boolean @default(false)
+  // comp snapshot taken at submission so later data updates don't rewrite history
+  salarySnap         Float?
+  billableTargetSnap Float?
+  billableActualSnap Float?
+  revenueTargetSnap  Float?
+  revenueActualSnap  Float?
+  dataPeriodSnap     String?
+  // director-only fields
+  compNotes       String?
+  recommendation  String? // NO_CHANGE | INCREASE | FURTHER_REVIEW
+  increaseAmount  Float?
+  compRationale   String?
+  agreedActions   Json?   // [{action, owner, byWhen}]
+  proudNotes      String? // director's general discussion notes
+  answers       Answer[]
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([userId, reviewDate])
+}
+
+model Answer {
+  id             String       @id @default(cuid())
+  cycleId        String
+  cycle          ReviewCycle  @relation(fields: [cycleId], references: [id], onDelete: Cascade)
+  questionId     String
+  question       Question     @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  // staff side
+  selfRating     RatingValue?
+  selfText       String?      // evidence / reflection
+  selfFocus      String?      // area for improvement (VALUE questions)
+  // director side
+  directorRating RatingValue?
+  directorNotes  String?
+  agreedFocus    String?      // agreed focus for next period
+  updatedAt      DateTime     @updatedAt
+
+  @@unique([cycleId, questionId])
+}
