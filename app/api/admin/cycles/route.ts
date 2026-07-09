@@ -40,27 +40,28 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  // Same emails the scheduler sends (no-ops silently if Resend isn't configured yet)
+  // Send the kickoff emails and report how they went
   const admins = await db.user.findMany({ where: { role: "ADMIN", active: true } });
   const adminEmails = admins.map((a) => a.email);
-  try {
-    await sendStaffKickoff({
-      to: person.email,
-      name: person.name,
+  const emailNotes: string[] = [];
+
+  const staffResult = await sendStaffKickoff({
+    to: person.email,
+    name: person.name,
+    reviewDate: cycle.reviewDate,
+    cycleId: cycle.id,
+  });
+  if (!staffResult.ok) emailNotes.push(`Staff email to ${person.email}: ${staffResult.detail}`);
+
+  if (adminEmails.length) {
+    const adminResult = await sendAdminKickoff({
+      to: adminEmails,
+      staffName: person.name,
       reviewDate: cycle.reviewDate,
-      cycleId: cycle.id,
+      organiserEmail: adminEmails[0],
     });
-    if (adminEmails.length) {
-      await sendAdminKickoff({
-        to: adminEmails,
-        staffName: person.name,
-        reviewDate: cycle.reviewDate,
-        organiserEmail: adminEmails[0],
-      });
-    }
-  } catch (e) {
-    console.error("kickoff email failed", e);
+    if (!adminResult.ok) emailNotes.push(`Admin email: ${adminResult.detail}`);
   }
 
-  return NextResponse.json({ ok: true, cycleId: cycle.id });
+  return NextResponse.json({ ok: true, cycleId: cycle.id, emailNotes });
 }
