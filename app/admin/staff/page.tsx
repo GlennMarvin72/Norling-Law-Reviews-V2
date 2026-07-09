@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import CsvUpload from "@/components/CsvUpload";
 
 type User = {
   id: string; email: string; name: string; position?: string | null;
@@ -16,7 +17,6 @@ function plusDays(days: number) {
 export default function StaffAdmin() {
   const [users, setUsers] = useState<User[]>([]);
   const [form, setForm] = useState({ name: "", email: "", position: "", startDate: "", hasTargets: false });
-  const [csvResults, setCsvResults] = useState<string[]>([]);
   const [reviewDates, setReviewDates] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState<string | null>(null);
 
@@ -39,14 +39,6 @@ export default function StaffAdmin() {
     load();
   };
 
-  const uploadCsv = async (file: File) => {
-    const fd = new FormData();
-    fd.append("file", file);
-    const res = await fetch("/api/admin/data", { method: "POST", body: fd });
-    const d = await res.json();
-    setCsvResults(d.results ?? [d.error ?? "Upload failed"]);
-    load();
-  };
 
   const startReview = async (u: User) => {
     const reviewDate = reviewDates[u.id] || plusDays(21);
@@ -79,12 +71,7 @@ export default function StaffAdmin() {
           revenue_actual, period. Rows match on email - existing people are updated, new people are
           created (name and start_date required for new). Extra columns are ignored.
         </p>
-        <input type="file" accept=".csv" onChange={(e) => { if (e.target.files?.[0]) { uploadCsv(e.target.files[0]); e.target.value = ""; } }} />
-        {csvResults.length > 0 && (
-          <ul className="text-sm text-greydark">
-            {csvResults.map((r, i) => <li key={i}>{r}</li>)}
-          </ul>
-        )}
+        <CsvUpload onDone={load} />
       </div>
 
       <div className="card space-y-3">
