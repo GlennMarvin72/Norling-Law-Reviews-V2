@@ -51,7 +51,11 @@ export default function StaffAdmin() {
     setBusy(null);
     const d = await res.json();
     if (!res.ok) return alert(d.error ?? "Could not start the review.");
-    alert(`Review started for ${u.name}. It's now in the pipeline on the Home page.`);
+    if (d.emailNotes?.length) {
+      alert(`Review started for ${u.name} and it's in the pipeline - BUT the emails had problems:\n\n${d.emailNotes.join("\n")}`);
+    } else {
+      alert(`Review started for ${u.name}. Kickoff emails sent - it's now in the pipeline on the Home page.`);
+    }
   };
 
   return (
