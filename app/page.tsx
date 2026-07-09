@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import CancelReviewButton from "@/components/CancelReviewButton";
 
 export const dynamic = "force-dynamic";
 
@@ -60,6 +61,9 @@ export default async function Home() {
                 <span className={`text-xs px-3 py-1 ${statusStyle[c.status]}`}>
                   {statusLabel[c.status]}
                 </span>
+                {(c.status === "NOT_STARTED" || c.status === "DRAFT") && (
+                  <CancelReviewButton cycleId={c.id} name={c.user.name} />
+                )}
                 <Link className="btn" href={`/review/${c.id}`}>
                   Open review
                 </Link>
