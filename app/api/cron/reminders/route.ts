@@ -43,6 +43,14 @@ export async function GET(req: NextRequest) {
         where: { userId: person.id, reviewDate },
       });
       if (!cycle) {
+        // Skip if a manually started cycle is already in flight for this person
+        const open = await db.reviewCycle.findFirst({
+          where: {
+            userId: person.id,
+            status: { in: ["NOT_STARTED", "DRAFT", "SUBMITTED"] },
+          },
+        });
+        if (open) continue;
         cycle = await db.reviewCycle.create({
           data: { userId: person.id, reviewDate },
         });
