@@ -27,8 +27,29 @@ export async function POST(req: NextRequest) {
 }
 
 export async function PUT(req: NextRequest) {
-  await requireAdmin();
+  const session = await requireAdmin();
   const b = await req.json();
+
+  // Role changes get guardrails: no demoting yourself, no removing the last admin
+  if (b.role === "STAFF") {
+    if (b.id === (session as any).userId) {
+      return NextResponse.json(
+        { error: "You can't remove your own admin rights - ask another admin to do it." },
+        { status: 400 }
+      );
+    }
+    const target = await db.user.findUnique({ where: { id: b.id } });
+    if (target?.role === "ADMIN") {
+      const adminCount = await db.user.count({ where: { role: "ADMIN", active: true } });
+      if (adminCount <= 1) {
+        return NextResponse.json(
+          { error: "That would leave no admins - promote someone else first." },
+          { status: 400 }
+        );
+      }
+    }
+  }
+
   const data: any = {};
   for (const k of ["name", "position", "active", "hasTargets"]) if (k in b) data[k] = b[k];
   if (b.startDate) data.startDate = new Date(b.startDate);
