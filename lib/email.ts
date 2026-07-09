@@ -4,37 +4,45 @@ import { reviewIcs } from "@/lib/ics";
 const from = process.env.EMAIL_FROM ?? "Norling Law Reviews <onboarding@resend.dev>";
 const appUrl = process.env.APP_URL ?? "http://localhost:3000";
 
-function client() {
-  const key = process.env.RESEND_API_KEY;
-  if (!key) return null;
-  return new Resend(key);
-}
+export type SendResult = { ok: boolean; detail?: string };
 
 async function send(opts: {
   to: string[];
   subject: string;
   html: string;
   icsContent?: string;
-}) {
-  const resend = client();
-  if (!resend) {
-    console.log("[email skipped - no RESEND_API_KEY]", opts.subject, opts.to);
-    return;
+}): Promise<SendResult> {
+  const key = process.env.RESEND_API_KEY;
+  if (!key || key === "placeholder") {
+    console.log("[email skipped - RESEND_API_KEY missing or placeholder]", opts.subject);
+    return { ok: false, detail: "RESEND_API_KEY is missing or still set to 'placeholder' in Vercel." };
   }
-  await resend.emails.send({
-    from,
-    to: opts.to,
-    subject: opts.subject,
-    html: opts.html,
-    attachments: opts.icsContent
-      ? [
-          {
-            filename: "annual-review.ics",
-            content: Buffer.from(opts.icsContent).toString("base64"),
-          },
-        ]
-      : undefined,
-  });
+  const resend = new Resend(key);
+  try {
+    const { data, error } = await resend.emails.send({
+      from,
+      to: opts.to,
+      subject: opts.subject,
+      html: opts.html,
+      attachments: opts.icsContent
+        ? [
+            {
+              filename: "annual-review.ics",
+              content: Buffer.from(opts.icsContent).toString("base64"),
+            },
+          ]
+        : undefined,
+    });
+    if (error) {
+      console.error("[email rejected by Resend]", opts.subject, JSON.stringify(error));
+      return { ok: false, detail: `Resend rejected the email: ${error.message ?? JSON.stringify(error)}` };
+    }
+    console.log("[email sent]", opts.subject, data?.id);
+    return { ok: true };
+  } catch (e: any) {
+    console.error("[email send threw]", opts.subject, e?.message);
+    return { ok: false, detail: `Email send failed: ${e?.message ?? "unknown error"}` };
+  }
 }
 
 const wrap = (body: string) => `
@@ -55,7 +63,7 @@ export async function sendStaffKickoff(opts: {
   cycleId: string;
 }) {
   const date = opts.reviewDate.toLocaleDateString("en-NZ", { day: "numeric", month: "long", year: "numeric" });
-  await send({
+  return send({
     to: [opts.to],
     subject: `Your annual review is coming up - ${date}`,
     html: wrap(`
@@ -74,7 +82,7 @@ export async function sendStaffNudge(opts: {
   cycleId: string;
 }) {
   const date = opts.reviewDate.toLocaleDateString("en-NZ", { day: "numeric", month: "long" });
-  await send({
+  return send({
     to: [opts.to],
     subject: `Reminder - reflection due before your review on ${date}`,
     html: wrap(`
@@ -92,7 +100,7 @@ export async function sendAdminKickoff(opts: {
   organiserEmail: string;
 }) {
   const date = opts.reviewDate.toLocaleDateString("en-NZ", { day: "numeric", month: "long", year: "numeric" });
-  await send({
+  return send({
     to: opts.to,
     subject: `Annual review coming up - ${opts.staffName} (${date})`,
     html: wrap(`
@@ -113,7 +121,7 @@ export async function sendAdminSubmitted(opts: {
   staffName: string;
   cycleId: string;
 }) {
-  await send({
+  return send({
     to: opts.to,
     subject: `Reflection submitted - ${opts.staffName}`,
     html: wrap(`
@@ -128,7 +136,7 @@ export async function sendAdminMissingFlag(opts: {
   reviewDate: Date;
 }) {
   const date = opts.reviewDate.toLocaleDateString("en-NZ", { day: "numeric", month: "long" });
-  await send({
+  return send({
     to: opts.to,
     subject: `Flag - ${opts.staffName}'s reflection still missing (review ${date})`,
     html: wrap(`
