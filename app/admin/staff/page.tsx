@@ -42,7 +42,7 @@ export default function StaffAdmin() {
 
   const startReview = async (u: User) => {
     const reviewDate = reviewDates[u.id] || plusDays(21);
-    if (!confirm(`Start ${u.name}'s review now, with the review meeting on ${new Date(reviewDate).toLocaleDateString("en-NZ", { day: "numeric", month: "long", year: "numeric" })}? They'll be emailed their reflection link (once email is configured).`)) return;
+    if (!confirm(`Start ${u.name}'s review now, with the review meeting on ${new Date(reviewDate).toLocaleDateString("en-NZ", { day: "numeric", month: "long", year: "numeric" })}? They'll be emailed their reflection link straight away.`)) return;
     setBusy(u.id);
     const res = await fetch("/api/admin/cycles", {
       method: "POST", headers: { "Content-Type": "application/json" },
