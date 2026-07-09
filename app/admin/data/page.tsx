@@ -1,22 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import CsvUpload from "@/components/CsvUpload";
 
 export default function DataAdmin() {
   const [users, setUsers] = useState<any[]>([]);
-  const [results, setResults] = useState<string[]>([]);
 
   const load = () => fetch("/api/admin/staff").then((r) => r.json()).then((d) => setUsers(d.users));
   useEffect(() => { load(); }, []);
 
-  const upload = async (file: File) => {
-    const fd = new FormData();
-    fd.append("file", file);
-    const res = await fetch("/api/admin/data", { method: "POST", body: fd });
-    const d = await res.json();
-    setResults(d.results ?? [d.error]);
-    load();
-  };
 
   const save = async (id: string, patch: any) => {
     await fetch("/api/admin/staff", {
@@ -38,12 +30,7 @@ export default function DataAdmin() {
 
       <div className="card space-y-3">
         <h2 className="font-medium">CSV upload</h2>
-        <input type="file" accept=".csv" onChange={(e) => e.target.files?.[0] && upload(e.target.files[0])} />
-        {results.length > 0 && (
-          <ul className="text-sm text-greydark list-none">
-            {results.map((r, i) => <li key={i}>{r}</li>)}
-          </ul>
-        )}
+        <CsvUpload onDone={load} />
       </div>
 
       <div className="overflow-x-auto">
