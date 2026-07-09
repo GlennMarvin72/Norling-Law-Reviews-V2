@@ -166,7 +166,7 @@ export function ReviewPackPdf({ pack, includeComp }: { pack: any; includeComp: b
                   {a.directorNotes ? (
                     <Text style={s.fieldText}>{a.directorNotes}</Text>
                   ) : (
-                    <View style={s.writeSpace} />
+                    <View style={{ ...s.writeSpace, height: 80 }} />
                   )}
                   {q.type === "VALUE" && (
                     <>
