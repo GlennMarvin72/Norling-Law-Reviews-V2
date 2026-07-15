@@ -39,9 +39,25 @@ export async function GET(req: NextRequest, { params }: { params: { cycleId: str
   // ?comp=0 produces a version safe to share with the employee
   const includeComp = req.nextUrl.searchParams.get("comp") !== "0";
 
-  const buffer = await renderToBuffer(
-    React.createElement(ReviewPackPdf, { pack: { cycle, sections, perf }, includeComp }) as any
-  );
+  let buffer: Buffer;
+  try {
+    buffer = await renderToBuffer(
+      React.createElement(ReviewPackPdf, { pack: { cycle, sections, perf }, includeComp, font: "Inter" }) as any
+    );
+  } catch (e: any) {
+    console.error("[pdf] Inter render failed, falling back to Helvetica:", e?.message);
+    try {
+      buffer = await renderToBuffer(
+        React.createElement(ReviewPackPdf, { pack: { cycle, sections, perf }, includeComp, font: "Helvetica" }) as any
+      );
+    } catch (e2: any) {
+      console.error("[pdf] render failed entirely:", e2?.message);
+      return NextResponse.json(
+        { error: `PDF generation failed: ${e2?.message ?? "unknown error"}` },
+        { status: 500 }
+      );
+    }
+  }
 
   const filename = `Annual_Review_${cycle.user.name.replace(/\s+/g, "_")}.pdf`;
   return new NextResponse(buffer as any, {
