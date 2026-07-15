@@ -69,7 +69,7 @@ function Ratings({ self, director }: { self?: string | null; director?: string |
   );
 }
 
-export function ReviewPackPdf({ pack, includeComp }: { pack: any; includeComp: boolean }) {
+export function ReviewPackPdf({ pack, includeComp, font = "Inter" }: { pack: any; includeComp: boolean; font?: string }) {
   const { cycle, sections, perf } = pack;
   const answerFor = (qid: string) => cycle.answers.find((a: any) => a.questionId === qid) ?? {};
   const reviewDate = new Date(cycle.reviewDate).toLocaleDateString("en-NZ", {
@@ -84,7 +84,7 @@ export function ReviewPackPdf({ pack, includeComp }: { pack: any; includeComp: b
 
   return (
     <Document title={`Annual Review - ${cycle.user.name}`}>
-      <Page size="A4" style={s.page}>
+      <Page size="A4" style={{ ...s.page, fontFamily: font }}>
         <View style={s.header} fixed>
           <Text style={s.logo}>
             norling law<Text style={s.logoDot}>.</Text>
