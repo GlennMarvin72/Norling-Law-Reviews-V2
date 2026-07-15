@@ -17,7 +17,6 @@ function toIcsDate(d: Date) {
 export function reviewIcs(opts: {
   staffName: string;
   reviewDate: Date;
-  organiserEmail: string;
 }) {
   // Default the meeting to 10am-11am NZ time on the review date.
   const start = new Date(opts.reviewDate);
@@ -35,8 +34,7 @@ export function reviewIcs(opts: {
     `DTSTART:${toIcsDate(start)}`,
     `DTEND:${toIcsDate(end)}`,
     `SUMMARY:Annual Review - ${opts.staffName}`,
-    `DESCRIPTION:Annual performance review for ${opts.staffName}. Reflection and performance pack in the Reviews app.`,
-    `ORGANIZER:mailto:${opts.organiserEmail}`,
+    `DESCRIPTION:Annual performance review for ${opts.staffName}. Reflection and performance pack in the Reviews app. Edit the time to suit when booking it in.`,
     "END:VEVENT",
     "END:VCALENDAR",
   ].join("\r\n");
