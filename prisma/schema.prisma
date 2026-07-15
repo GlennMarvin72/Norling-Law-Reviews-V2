@@ -36,6 +36,7 @@ model User {
   name           String
   position       String?
   role           Role     @default(STAFF)
+  reviewNotifications Boolean @default(true) // admins: receive kickoff/submitted/flag emails
   startDate      DateTime // anniversary drives the review date
   active         Boolean  @default(true)
   hasTargets     Boolean  @default(false) // billable/revenue targets apply
