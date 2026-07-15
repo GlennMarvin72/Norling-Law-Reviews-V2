@@ -97,7 +97,6 @@ export async function sendAdminKickoff(opts: {
   to: string[];
   staffName: string;
   reviewDate: Date;
-  organiserEmail: string;
 }) {
   const date = opts.reviewDate.toLocaleDateString("en-NZ", { day: "numeric", month: "long", year: "numeric" });
   return send({
@@ -111,7 +110,6 @@ export async function sendAdminKickoff(opts: {
     icsContent: reviewIcs({
       staffName: opts.staffName,
       reviewDate: opts.reviewDate,
-      organiserEmail: opts.organiserEmail,
     }),
   });
 }
