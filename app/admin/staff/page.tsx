@@ -5,7 +5,7 @@ import CsvUpload from "@/components/CsvUpload";
 
 type User = {
   id: string; email: string; name: string; position?: string | null;
-  role: string; startDate: string; active: boolean; hasTargets: boolean;
+  role: string; startDate: string; active: boolean; hasTargets: boolean; reviewNotifications: boolean;
 };
 
 function plusDays(days: number) {
@@ -125,6 +125,12 @@ export default function StaffAdmin() {
                 }} />
                 Admin
               </label>
+              {u.role === "ADMIN" && (
+                <label className="flex items-center gap-2 text-sm" title="Receive the review kickoff emails, calendar invites, submission alerts and overdue flags">
+                  <input type="checkbox" checked={u.reviewNotifications} onChange={(e) => update(u.id, { reviewNotifications: e.target.checked })} />
+                  Review emails
+                </label>
+              )}
             </div>
             {u.active && (
               <div className="flex flex-wrap items-end gap-3 pt-2 border-t border-stone">
