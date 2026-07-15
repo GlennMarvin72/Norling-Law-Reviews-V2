@@ -26,9 +26,8 @@ export async function GET(req: NextRequest) {
   }
 
   const now = new Date();
-  const admins = await db.user.findMany({ where: { role: "ADMIN", active: true } });
+  const admins = await db.user.findMany({ where: { role: "ADMIN", active: true, reviewNotifications: true } });
   const adminEmails = admins.map((a) => a.email);
-  const organiser = adminEmails[0] ?? "reviews@norlinglaw.co.nz";
   const log: string[] = [];
 
   const staff = await db.user.findMany({ where: { active: true } });
@@ -65,7 +64,6 @@ export async function GET(req: NextRequest) {
             to: adminEmails,
             staffName: person.name,
             reviewDate,
-            organiserEmail: organiser,
           });
         }
         await db.reviewCycle.update({
