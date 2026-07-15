@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
   });
 
   // Send the kickoff emails and report how they went
-  const admins = await db.user.findMany({ where: { role: "ADMIN", active: true } });
+  const admins = await db.user.findMany({ where: { role: "ADMIN", active: true, reviewNotifications: true } });
   const adminEmails = admins.map((a) => a.email);
   const emailNotes: string[] = [];
 
@@ -58,7 +58,6 @@ export async function POST(req: NextRequest) {
       to: adminEmails,
       staffName: person.name,
       reviewDate: cycle.reviewDate,
-      organiserEmail: adminEmails[0],
     });
     if (!adminResult.ok) emailNotes.push(`Admin email: ${adminResult.detail}`);
   }
