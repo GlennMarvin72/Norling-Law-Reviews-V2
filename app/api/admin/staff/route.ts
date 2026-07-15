@@ -51,7 +51,7 @@ export async function PUT(req: NextRequest) {
   }
 
   const data: any = {};
-  for (const k of ["name", "position", "active", "hasTargets"]) if (k in b) data[k] = b[k];
+  for (const k of ["name", "position", "active", "hasTargets", "reviewNotifications"]) if (k in b) data[k] = b[k];
   if (b.startDate) data.startDate = new Date(b.startDate);
   if (b.role) data.role = b.role;
   for (const k of ["salary", "billableTarget", "billableActual", "revenueTarget", "revenueActual"])
