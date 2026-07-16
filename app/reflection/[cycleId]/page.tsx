@@ -40,10 +40,26 @@ export default function ReflectionPage() {
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dirty = useRef<Set<string>>(new Set());
 
+  const [loadError, setLoadError] = useState<string | null>(null);
+
   useEffect(() => {
     fetch(`/api/reflection/${cycleId}`)
-      .then((r) => r.json())
-      .then((data) => {
+      .then(async (r) => {
+        if (!r.ok) {
+          setLoadError(
+            r.status === 404
+              ? "This reflection isn't linked to your account. This usually means the email you sign in with doesn't match the one on your staff record - contact Glenn and it's a quick fix."
+              : `Something went wrong loading your reflection (error ${r.status}). Try refreshing, and contact Glenn if it keeps happening.`
+          );
+          setLoading(false);
+          return;
+        }
+        const data = await r.json();
+        if (!data.sections?.length) {
+          setLoadError("No questions are set up yet - contact Glenn.");
+          setLoading(false);
+          return;
+        }
         setSections(data.sections ?? []);
         setStatus(data.status);
         const map: Record<string, AnswerDraft> = {};
@@ -51,6 +67,10 @@ export default function ReflectionPage() {
           map[a.questionId] = { selfRating: a.selfRating, selfText: a.selfText, selfFocus: a.selfFocus };
         }
         setAnswers(map);
+        setLoading(false);
+      })
+      .catch(() => {
+        setLoadError("Couldn't reach the server - check your connection and refresh.");
         setLoading(false);
       });
   }, [cycleId]);
@@ -100,6 +120,14 @@ export default function ReflectionPage() {
   };
 
   if (loading) return <p className="text-greydark text-sm">Loading your reflection...</p>;
+
+  if (loadError) {
+    return (
+      <div className="card max-w-2xl border-l-4 border-l-gold">
+        <p className="text-sm">{loadError}</p>
+      </div>
+    );
+  }
 
   if (status === "SUBMITTED" || status === "COMPLETED") {
     return (
@@ -239,4 +267,4 @@ export default function ReflectionPage() {
       </div>
     </div>
   );
-} 
+}
