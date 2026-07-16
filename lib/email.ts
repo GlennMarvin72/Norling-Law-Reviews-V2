@@ -1,5 +1,4 @@
 import { Resend } from "resend";
-import { reviewIcs } from "@/lib/ics";
 
 const from = process.env.EMAIL_FROM ?? "Norling Law Reviews <onboarding@resend.dev>";
 const appUrl = process.env.APP_URL ?? "http://localhost:3000";
@@ -68,10 +67,38 @@ export async function sendStaffKickoff(opts: {
     subject: `Your annual review is coming up - ${date}`,
     html: wrap(`
       <p>Hi ${opts.name.split(" ")[0]},</p>
-      <p>Your annual review is scheduled for <strong>${date}</strong> - three weeks away.</p>
-      <p>Please complete your reflection before the review. You can save as you go and come back any time.</p>
+      <p>Your annual review is due around <strong>${date}</strong> - three weeks away. A meeting time will be booked into your calendar by Brent's office.</p>
+      <p>Please complete your reflection before the review. You can save as you go and come back any time - submit it before your meeting.</p>
       <p><a href="${appUrl}/reflection/${opts.cycleId}" style="background:#000;color:#fff;padding:10px 20px;text-decoration:none;display:inline-block">Start my reflection</a></p>
       <p>Cheers</p>`),
+  });
+}
+
+export async function sendAdminMeetingBooked(opts: {
+  to: string[];
+  staffName: string;
+}) {
+  return send({
+    to: opts.to,
+    subject: `Review meeting booked - ${opts.staffName}`,
+    html: wrap(`
+      <p><strong>${opts.staffName}</strong> has confirmed their review meeting is booked.</p>
+      <p><a href="${appUrl}" style="background:#000;color:#fff;padding:10px 20px;text-decoration:none;display:inline-block">Open the Reviews app</a></p>`),
+  });
+}
+
+export async function sendAdminNotBooked(opts: {
+  to: string[];
+  staffName: string;
+  reviewDate: Date;
+}) {
+  const date = opts.reviewDate.toLocaleDateString("en-NZ", { day: "numeric", month: "long" });
+  return send({
+    to: opts.to,
+    subject: `Flag - ${opts.staffName} hasn't booked their review meeting (due ${date})`,
+    html: wrap(`
+      <p><strong>${opts.staffName}</strong>'s review is due around <strong>${date}</strong> - less than a week away - and their meeting hasn't been confirmed as booked.</p>
+      <p>May pay to give them a nudge.</p>`),
   });
 }
 
@@ -101,16 +128,12 @@ export async function sendAdminKickoff(opts: {
   const date = opts.reviewDate.toLocaleDateString("en-NZ", { day: "numeric", month: "long", year: "numeric" });
   return send({
     to: opts.to,
-    subject: `Annual review coming up - ${opts.staffName} (${date})`,
+    subject: `Action - book ${opts.staffName}'s annual review (due ${date})`,
     html: wrap(`
       <p>Hi,</p>
-      <p><strong>${opts.staffName}</strong>'s annual review is due on <strong>${date}</strong>. Their reflection request has just gone out.</p>
-      <p>A calendar invite is attached - open it to add the review meeting to your calendar (you can change the time when you book it in).</p>
+      <p><strong>${opts.staffName}</strong>'s annual review is due around <strong>${date}</strong> - three weeks from today. Their reflection request has just gone out.</p>
+      <p><strong>Action needed:</strong> check the schedule and book the review meeting in on or around ${date}, then mark it as booked in the Reviews app so it's tracked. A reminder will fire if it's still unbooked a week out.</p>
       <p><a href="${appUrl}" style="background:#000;color:#fff;padding:10px 20px;text-decoration:none;display:inline-block">Open the Reviews app</a></p>`),
-    icsContent: reviewIcs({
-      staffName: opts.staffName,
-      reviewDate: opts.reviewDate,
-    }),
   });
 }
 
