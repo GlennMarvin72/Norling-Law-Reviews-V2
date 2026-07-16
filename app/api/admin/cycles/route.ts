@@ -42,7 +42,9 @@ export async function POST(req: NextRequest) {
 
   // Send the kickoff emails and report how they went
   const admins = await db.user.findMany({ where: { role: "ADMIN", active: true, reviewNotifications: true } });
-  const adminEmails = admins.map((a) => a.email);
+  const schedulerEmails = (process.env.REVIEW_SCHEDULER_EMAILS ?? "")
+    .split(",").map((e) => e.trim()).filter(Boolean);
+  const adminEmails = Array.from(new Set([...admins.map((a) => a.email), ...schedulerEmails]));
   const emailNotes: string[] = [];
 
   const staffResult = await sendStaffKickoff({
