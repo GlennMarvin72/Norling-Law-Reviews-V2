@@ -1,72 +1,220 @@
-import type { NextAuthOptions } from "next-auth";
-import AzureADProvider from "next-auth/providers/azure-ad";
+import Link from "next/link";
 import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 import { db } from "@/lib/db";
+import CancelReviewButton from "@/components/CancelReviewButton";
+import MarkBookedButton from "@/components/MarkBookedButton";
 
-const adminEmails = (process.env.ADMIN_EMAILS ?? "")
-  .split(",")
-  .map((e) => e.trim().toLowerCase())
-  .filter(Boolean);
+export const dynamic = "force-dynamic";
 
-export const authOptions: NextAuthOptions = {
-  pages: { signIn: "/signin" },
-  providers: [
-    AzureADProvider({
-      clientId: process.env.AZURE_AD_CLIENT_ID!,
-      clientSecret: process.env.AZURE_AD_CLIENT_SECRET!,
-      tenantId: process.env.AZURE_AD_TENANT_ID!,
-    }),
-  ],
-  callbacks: {
-    async signIn({ user }) {
-      const email = user.email?.toLowerCase();
-      if (!email) return false;
-      // Provision the user record on first sign-in. Anniversary date and
-      // targets get set by an admin afterwards.
-      const isAdmin = adminEmails.includes(email);
-      await db.user.upsert({
-        where: { email },
-        update: { name: user.name ?? email, role: isAdmin ? "ADMIN" : undefined },
-        create: {
-          email,
-          name: user.name ?? email,
-          role: isAdmin ? "ADMIN" : "STAFF",
-          startDate: new Date(), // placeholder - admin sets the real anniversary
-        },
-      });
-      return true;
-    },
-    async jwt({ token }) {
-      if (token.email) {
-        const u = await db.user.findUnique({
-          where: { email: token.email.toLowerCase() },
-          select: { id: true, role: true, scheduler: true },
-        });
-        if (u) {
-          token.userId = u.id;
-          token.role = u.role;
-          token.scheduler = u.scheduler;
-        }
-      }
-      return token;
-    },
-    async session({ session, token }) {
-      (session as any).userId = token.userId;
-      (session as any).role = token.role;
-      (session as any).scheduler = token.scheduler;
-      return session;
-    },
-  },
+const statusLabel: Record<string, string> = {
+  NOT_STARTED: "Not started",
+  DRAFT: "In progress",
+  SUBMITTED: "Submitted - ready for review",
+  COMPLETED: "Completed",
 };
 
-export async function requireSession() {
-  const session = await getServerSession(authOptions);
-  if (!session) throw new Error("UNAUTHENTICATED");
-  return session as typeof session & { userId: string; role: "STAFF" | "ADMIN" };
+const statusStyle: Record<string, string> = {
+  NOT_STARTED: "bg-stonelight text-greydark",
+  DRAFT: "bg-gold/20 text-ink",
+  SUBMITTED: "bg-gold text-ink",
+  COMPLETED: "bg-ink text-white",
+};
+
+function fmt(d: Date) {
+  return d.toLocaleDateString("en-NZ", { day: "numeric", month: "long", year: "numeric" });
 }
 
-export async function requireAdmin() {
-  const session = await requireSession();
-  if (session.role !== "ADMIN") throw new Error("FORBIDDEN");
-  return session;
+export default async function Home() {
+  const session = (await getServerSession(authOptions)) as any;
+  if (!session) return null; // middleware redirects to sign-in
+
+  if (session.role === "ADMIN") {
+    const cycles = await db.reviewCycle.findMany({
+      include: { user: true },
+      orderBy: { reviewDate: "asc" },
+    });
+    const upcoming = cycles.filter((c) => c.status !== "COMPLETED");
+    const done = cycles.filter((c) => c.status === "COMPLETED").slice(-10).reverse();
+    return (
+      <div className="space-y-10">
+        <div>
+          <h1 className="text-2xl font-semibold mb-1">Review pipeline</h1>
+          <p className="text-greydark text-sm">
+            Cycles are created automatically three weeks before each person&apos;s anniversary.
+          </p>
+        </div>
+        <section className="space-y-3">
+          <h2 className="text-sm font-medium uppercase tracking-wide text-greydark">Upcoming</h2>
+          {upcoming.length === 0 && (
+            <div className="card text-sm text-greydark">
+              Nothing in the pipeline. Add staff and anniversary dates under Staff, and the daily
+              scheduler will pick them up.
+            </div>
+          )}
+          {upcoming.map((c) => (
+            <div key={c.id} className="card flex items-center justify-between gap-4">
+              <div>
+                <div className="font-medium">{c.user.name}</div>
+                <div className="text-sm text-greydark">Review {fmt(c.reviewDate)}</div>
+              </div>
+              <div className="flex items-center gap-4">
+                <span className={`text-xs px-3 py-1 ${c.meetingBooked ? "bg-ink text-white" : "bg-stonelight text-greydark"}`}>
+                  {c.meetingBooked ? "Meeting booked" : "No meeting booked"}
+                </span>
+                {!c.meetingBooked && c.status !== "COMPLETED" && (
+                  <MarkBookedButton
+                    cycleId={c.id}
+                    confirmText={`Confirm ${c.user.name}'s review meeting has been booked in the calendar?`}
+                  />
+                )}
+                <span className={`text-xs px-3 py-1 ${statusStyle[c.status]}`}>
+                  {statusLabel[c.status]}
+                </span>
+                {(c.status === "NOT_STARTED" || c.status === "DRAFT") && (
+                  <CancelReviewButton cycleId={c.id} name={c.user.name} />
+                )}
+                <Link className="btn" href={`/review/${c.id}`}>
+                  Open review
+                </Link>
+              </div>
+            </div>
+          ))}
+        </section>
+        {done.length > 0 && (
+          <section className="space-y-3">
+            <h2 className="text-sm font-medium uppercase tracking-wide text-greydark">
+              Recently completed
+            </h2>
+            {done.map((c) => (
+              <div key={c.id} className="card flex items-center justify-between gap-4">
+                <div>
+                  <div className="font-medium">{c.user.name}</div>
+                  <div className="text-sm text-greydark">Reviewed {fmt(c.reviewDate)}</div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <a className="btn-gold" href={`/api/pdf/${c.id}`}>
+                    PDF pack
+                  </a>
+                  <Link className="btn" href={`/review/${c.id}`}>
+                    View
+                  </Link>
+                </div>
+              </div>
+            ))}
+          </section>
+        )}
+      </div>
+    );
+  }
+
+  // Staff view
+  const me = await db.user.findUnique({ where: { id: session.userId } });
+  const scheduleCycles = me?.scheduler
+    ? await db.reviewCycle.findMany({
+        where: { status: { not: "COMPLETED" } },
+        include: { user: { select: { name: true } } },
+        orderBy: { reviewDate: "asc" },
+      })
+    : [];
+  const cycles = await db.reviewCycle.findMany({
+    where: { userId: session.userId },
+    orderBy: { reviewDate: "desc" },
+  });
+  const current = cycles.find((c) => c.status !== "COMPLETED");
+
+  return (
+    <div className="max-w-2xl space-y-8">
+      <div>
+        <h1 className="text-2xl font-semibold mb-1">Kia ora, {me?.name.split(" ")[0]}</h1>
+        <p className="text-greydark text-sm">Your annual review reflections live here.</p>
+      </div>
+      {current ? (
+        <div className="card space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="font-medium">Annual review - {fmt(current.reviewDate)}</div>
+              <div className="text-sm text-greydark">
+                Complete your reflection before the review. Save as you go - you can come back any
+                time.
+              </div>
+            </div>
+            <span className={`text-xs px-3 py-1 ${statusStyle[current.status]}`}>
+              {statusLabel[current.status]}
+            </span>
+          </div>
+          <div className="border-t border-stone pt-4 space-y-1">
+            <div className="text-xs font-medium uppercase tracking-wide text-greydark">
+              Review meeting
+            </div>
+            {current.meetingBooked ? (
+              <p className="text-sm">Booked - check your calendar for the time. ✓</p>
+            ) : (
+              <p className="text-sm text-greydark">
+                Brent&apos;s office will book the meeting into your calendar - keep an eye out
+                for the invite.
+              </p>
+            )}
+          </div>
+          {current.status !== "SUBMITTED" ? (
+            <Link className="btn-gold" href={`/reflection/${current.id}`}>
+              {current.status === "DRAFT" ? "Continue my reflection" : "Start my reflection"}
+            </Link>
+          ) : (
+            <p className="text-sm text-greydark">
+              Submitted - nothing more to do until your review meeting. Nice one.
+            </p>
+          )}
+        </div>
+      ) : (
+        <div className="card text-sm text-greydark">
+          No review is open right now. You&apos;ll get an email three weeks before your review date
+          when your reflection opens.
+        </div>
+      )}
+      {me?.scheduler && (
+        <section className="space-y-3">
+          <h2 className="text-sm font-medium uppercase tracking-wide text-greydark">
+            Review schedule
+          </h2>
+          {scheduleCycles.length === 0 && (
+            <div className="card text-sm text-greydark">No reviews in the pipeline right now.</div>
+          )}
+          {scheduleCycles.map((c) => (
+            <div key={c.id} className="card flex items-center justify-between gap-4">
+              <div>
+                <div className="font-medium">{c.user.name}</div>
+                <div className="text-sm text-greydark">Review {fmt(c.reviewDate)}</div>
+              </div>
+              <div className="flex items-center gap-4">
+                <span className={`text-xs px-3 py-1 ${c.meetingBooked ? "bg-ink text-white" : "bg-stonelight text-greydark"}`}>
+                  {c.meetingBooked ? "Meeting booked" : "No meeting booked"}
+                </span>
+                {!c.meetingBooked && (
+                  <MarkBookedButton
+                    cycleId={c.id}
+                    confirmText={`Confirm ${c.user.name}'s review meeting has been booked in the calendar?`}
+                  />
+                )}
+              </div>
+            </div>
+          ))}
+        </section>
+      )}
+      {cycles.filter((c) => c.status === "COMPLETED").length > 0 && (
+        <div className="space-y-3">
+          <h2 className="text-sm font-medium uppercase tracking-wide text-greydark">
+            Past reviews
+          </h2>
+          {cycles
+            .filter((c) => c.status === "COMPLETED")
+            .map((c) => (
+              <div key={c.id} className="card text-sm">
+                Reviewed {fmt(c.reviewDate)}
+              </div>
+            ))}
+        </div>
+      )}
+    </div>
+  );
 }
