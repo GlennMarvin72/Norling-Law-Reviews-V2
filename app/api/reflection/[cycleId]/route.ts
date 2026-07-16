@@ -52,16 +52,17 @@ export async function PUT(req: NextRequest, { params }: { params: { cycleId: str
   }
 
   const body = await req.json();
+  const cap = (v?: string | null) => (typeof v === "string" ? v.slice(0, 300) : null);
   for (const a of body.answers ?? []) {
     await db.answer.upsert({
       where: { cycleId_questionId: { cycleId: cycle.id, questionId: a.questionId } },
-      update: { selfRating: a.selfRating ?? null, selfText: a.selfText ?? null, selfFocus: a.selfFocus ?? null },
+      update: { selfRating: a.selfRating ?? null, selfText: cap(a.selfText), selfFocus: cap(a.selfFocus) },
       create: {
         cycleId: cycle.id,
         questionId: a.questionId,
         selfRating: a.selfRating ?? null,
-        selfText: a.selfText ?? null,
-        selfFocus: a.selfFocus ?? null,
+        selfText: cap(a.selfText),
+        selfFocus: cap(a.selfFocus),
       },
     });
   }
