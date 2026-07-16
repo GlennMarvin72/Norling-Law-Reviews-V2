@@ -5,6 +5,7 @@ import {
   sendStaffNudge,
   sendAdminKickoff,
   sendAdminMissingFlag,
+  sendAdminNotBooked,
 } from "@/lib/email";
 
 export const dynamic = "force-dynamic";
@@ -27,7 +28,9 @@ export async function GET(req: NextRequest) {
 
   const now = new Date();
   const admins = await db.user.findMany({ where: { role: "ADMIN", active: true, reviewNotifications: true } });
-  const adminEmails = admins.map((a) => a.email);
+  const schedulerEmails = (process.env.REVIEW_SCHEDULER_EMAILS ?? "")
+    .split(",").map((e) => e.trim()).filter(Boolean);
+  const adminEmails = Array.from(new Set([...admins.map((a) => a.email), ...schedulerEmails]));
   const log: string[] = [];
 
   const staff = await db.user.findMany({ where: { active: true } });
@@ -89,6 +92,20 @@ export async function GET(req: NextRequest) {
           data: { staffReminder1w: true },
         });
         log.push(`1-week nudge: ${person.name}`);
+      }
+
+      // 2b. Seven-day flag to admins if the meeting hasn't been booked
+      if (daysOut <= 7 && !cycle.meetingBooked && !cycle.bookingFlag7d && adminEmails.length) {
+        await sendAdminNotBooked({
+          to: adminEmails,
+          staffName: person.name,
+          reviewDate,
+        });
+        await db.reviewCycle.update({
+          where: { id: cycle.id },
+          data: { bookingFlag7d: true },
+        });
+        log.push(`7-day not-booked flag: ${person.name}`);
       }
 
       // 3. Three-day flag to admins if still missing
