@@ -51,7 +51,18 @@ export async function PUT(req: NextRequest) {
   }
 
   const data: any = {};
-  for (const k of ["name", "position", "active", "hasTargets", "reviewNotifications"]) if (k in b) data[k] = b[k];
+  for (const k of ["name", "position", "active", "hasTargets", "reviewNotifications", "scheduler"]) if (k in b) data[k] = b[k];
+  if (b.email) {
+    const email = String(b.email).toLowerCase().trim();
+    const clash = await db.user.findUnique({ where: { email } });
+    if (clash && clash.id !== b.id) {
+      return NextResponse.json(
+        { error: `That email already belongs to ${clash.name} - emails must be unique.` },
+        { status: 400 }
+      );
+    }
+    data.email = email;
+  }
   if (b.startDate) data.startDate = new Date(b.startDate);
   if (b.role) data.role = b.role;
   for (const k of ["salary", "billableTarget", "billableActual", "revenueTarget", "revenueActual"])
