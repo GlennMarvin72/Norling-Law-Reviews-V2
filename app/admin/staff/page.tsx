@@ -5,7 +5,7 @@ import CsvUpload from "@/components/CsvUpload";
 
 type User = {
   id: string; email: string; name: string; position?: string | null;
-  role: string; startDate: string; active: boolean; hasTargets: boolean; reviewNotifications: boolean;
+  role: string; startDate: string; active: boolean; hasTargets: boolean; reviewNotifications: boolean; scheduler: boolean;
 };
 
 function plusDays(days: number) {
@@ -98,8 +98,24 @@ export default function StaffAdmin() {
           <div key={u.id} className={`card space-y-3 ${!u.active ? "opacity-50" : ""}`}>
             <div className="flex flex-wrap items-center gap-4">
               <div className="flex-1 min-w-48">
-                <div className="font-medium">{u.name} {u.role === "ADMIN" && <span className="text-xs bg-gold px-2 py-0.5 ml-1">Admin</span>}</div>
-                <div className="text-sm text-greydark">{u.email}{u.position ? ` \u00b7 ${u.position}` : ""}</div>
+                <div className="font-medium">{u.name} {u.role === "ADMIN" && <span className="text-xs bg-gold px-2 py-0.5 ml-1">Admin</span>}{u.scheduler && <span className="text-xs bg-stonelight px-2 py-0.5 ml-1">Scheduler</span>}</div>
+                <input
+                  className="text-sm text-greydark bg-transparent w-full focus:outline-none focus:border-b focus:border-gold"
+                  title="Must exactly match the email they sign in to Microsoft with"
+                  defaultValue={u.email}
+                  onBlur={async (e) => {
+                    const v = e.target.value.trim().toLowerCase();
+                    if (!v || v === u.email) return;
+                    if (!confirm(`Change ${u.name}'s email to ${v}? It must exactly match their Microsoft sign-in address.`)) { e.target.value = u.email; return; }
+                    const res = await fetch("/api/admin/staff", {
+                      method: "PUT", headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ id: u.id, email: v }),
+                    });
+                    if (!res.ok) { const d = await res.json(); alert(d.error ?? "Could not change the email."); e.target.value = u.email; }
+                    load();
+                  }}
+                />
+                {u.position && <div className="text-xs text-greydark">{u.position}</div>}
               </div>
               <label className="text-sm">
                 <span className="label">Anniversary</span>
@@ -129,6 +145,12 @@ export default function StaffAdmin() {
                 <label className="flex items-center gap-2 text-sm" title="Receive the review kickoff emails, calendar invites, submission alerts and overdue flags">
                   <input type="checkbox" checked={u.reviewNotifications} onChange={(e) => update(u.id, { reviewNotifications: e.target.checked })} />
                   Review emails
+                </label>
+              )}
+              {u.role !== "ADMIN" && (
+                <label className="flex items-center gap-2 text-sm" title="Can see the review schedule and mark meetings as booked - no access to salaries, targets or reflections. Also receives the booking prompt emails.">
+                  <input type="checkbox" checked={u.scheduler} onChange={(e) => update(u.id, { scheduler: e.target.checked })} />
+                  Scheduler
                 </label>
               )}
             </div>
