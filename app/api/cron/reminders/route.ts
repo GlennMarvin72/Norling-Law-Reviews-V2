@@ -27,10 +27,12 @@ export async function GET(req: NextRequest) {
   }
 
   const now = new Date();
-  const admins = await db.user.findMany({ where: { role: "ADMIN", active: true, reviewNotifications: true } });
-  const schedulerEmails = (process.env.REVIEW_SCHEDULER_EMAILS ?? "")
+  const admins = await db.user.findMany({
+    where: { active: true, OR: [{ role: "ADMIN", reviewNotifications: true }, { scheduler: true }] },
+  });
+  const extraEmails = (process.env.REVIEW_SCHEDULER_EMAILS ?? "")
     .split(",").map((e) => e.trim()).filter(Boolean);
-  const adminEmails = Array.from(new Set([...admins.map((a) => a.email), ...schedulerEmails]));
+  const adminEmails = Array.from(new Set([...admins.map((a) => a.email), ...extraEmails]));
   const log: string[] = [];
 
   const staff = await db.user.findMany({ where: { active: true } });
