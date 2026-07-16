@@ -37,6 +37,7 @@ model User {
   position       String?
   role           Role     @default(STAFF)
   reviewNotifications Boolean @default(true) // admins: receive kickoff/submitted/flag emails
+  scheduler      Boolean  @default(false) // can see the review schedule + mark meetings booked, no data access
   startDate      DateTime // anniversary drives the review date
   active         Boolean  @default(true)
   hasTargets     Boolean  @default(false) // billable/revenue targets apply
@@ -86,6 +87,10 @@ model ReviewCycle {
   staffReminder3w Boolean @default(false)
   staffReminder1w Boolean @default(false)
   adminFlag3d     Boolean @default(false)
+  // meeting booking tracking
+  meetingBooked   Boolean  @default(false)
+  bookedAt        DateTime?
+  bookingFlag7d   Boolean  @default(false)
   // comp snapshot taken at submission so later data updates don't rewrite history
   salarySnap         Float?
   billableTargetSnap Float?
