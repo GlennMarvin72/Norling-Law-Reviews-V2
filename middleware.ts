@@ -1,8 +1,10 @@
-export { default } from "next-auth/middleware";
+import { withAuth } from "next-auth/middleware";
+
+export default withAuth({ pages: { signIn: "/signin" } });
 
 export const config = {
   matcher: [
-    // Everything except auth routes, cron, and static assets requires sign-in
-    "/((?!api/auth|api/cron|_next/static|_next/image|favicon.ico).*)",
+    // Everything except sign-in, auth routes, cron, and static assets requires sign-in
+    "/((?!signin|api/auth|api/cron|_next/static|_next/image|favicon.ico).*)",
   ],
 };
