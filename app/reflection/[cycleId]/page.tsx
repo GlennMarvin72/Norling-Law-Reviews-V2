@@ -12,6 +12,17 @@ type Question = {
 type Section = { id: string; title: string; intro?: string | null; questions: Question[] };
 type AnswerDraft = { selfRating?: string | null; selfText?: string | null; selfFocus?: string | null };
 
+const MAX_CHARS = 300;
+
+function Counter({ value }: { value?: string | null }) {
+  const len = value?.length ?? 0;
+  return (
+    <div className={`text-xs mt-1 text-right ${len >= MAX_CHARS ? "text-red-700" : "text-greydark"}`}>
+      {len}/{MAX_CHARS}
+    </div>
+  );
+}
+
 const ratings = [
   { value: "DEVELOPING", label: "Developing" },
   { value: "MEETING", label: "Meeting" },
@@ -106,9 +117,34 @@ export default function ReflectionPage() {
       <div>
         <h1 className="text-2xl font-semibold mb-1">Annual review reflection</h1>
         <p className="text-greydark text-sm">
-          Be honest and specific - real examples beat general statements. Everything saves
-          automatically as you type.
+          Everything saves automatically as you type.
         </p>
+      </div>
+
+      <div className="card border-l-4 border-l-gold space-y-3">
+        <h2 className="font-semibold">A note before you begin</h2>
+        <div className="text-sm text-greydark leading-relaxed space-y-2">
+          <p>
+            This self-assessment is your opportunity to reflect on the period before your
+            annual review conversation.
+          </p>
+          <p>There are no right or wrong answers.</p>
+          <p>
+            It is not designed or expected to be used for you to provide a comprehensive
+            report or business case, but rather to highlight talking points to ensure we
+            make the most of the time in the discussion.
+          </p>
+          <p>
+            It is also not compulsory to provide context or a reflection on each value -
+            you can focus on providing context or talking points on those you are most
+            proud of or want to build on.
+          </p>
+          <p>
+            Text boxes are deliberately restricted to avoid lengthy responses, so showcase
+            your ability to be direct and concise in your responses.
+          </p>
+          <p>Please complete this independently and submit it prior to your review meeting.</p>
+        </div>
       </div>
 
       {sections.map((section) => (
@@ -150,26 +186,34 @@ export default function ReflectionPage() {
                       <span className="label">Your reflection - evidence and examples</span>
                       <textarea
                         className="input min-h-28"
+                        maxLength={MAX_CHARS}
                         value={a.selfText ?? ""}
                         onChange={(e) => update(q.id, { selfText: e.target.value })}
                       />
+                      <Counter value={a.selfText} />
                     </div>
                     <div>
                       <span className="label">Area you want to focus on</span>
                       <textarea
                         className="input min-h-20"
+                        maxLength={MAX_CHARS}
                         value={a.selfFocus ?? ""}
                         onChange={(e) => update(q.id, { selfFocus: e.target.value })}
                       />
+                      <Counter value={a.selfFocus} />
                     </div>
                   </>
                 )}
                 {q.type === "LONGTEXT" && (
-                  <textarea
-                    className="input min-h-28"
-                    value={a.selfText ?? ""}
-                    onChange={(e) => update(q.id, { selfText: e.target.value })}
-                  />
+                  <div>
+                    <textarea
+                      className="input min-h-28"
+                      maxLength={MAX_CHARS}
+                      value={a.selfText ?? ""}
+                      onChange={(e) => update(q.id, { selfText: e.target.value })}
+                    />
+                    <Counter value={a.selfText} />
+                  </div>
                 )}
               </div>
             );
