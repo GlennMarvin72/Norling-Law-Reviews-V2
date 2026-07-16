@@ -40,11 +40,12 @@ export const authOptions: NextAuthOptions = {
       if (token.email) {
         const u = await db.user.findUnique({
           where: { email: token.email.toLowerCase() },
-          select: { id: true, role: true },
+          select: { id: true, role: true, scheduler: true },
         });
         if (u) {
           token.userId = u.id;
           token.role = u.role;
+          token.scheduler = u.scheduler;
         }
       }
       return token;
@@ -52,6 +53,7 @@ export const authOptions: NextAuthOptions = {
     async session({ session, token }) {
       (session as any).userId = token.userId;
       (session as any).role = token.role;
+      (session as any).scheduler = token.scheduler;
       return session;
     },
   },
