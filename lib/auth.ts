@@ -9,6 +9,7 @@ const adminEmails = (process.env.ADMIN_EMAILS ?? "")
   .filter(Boolean);
 
 export const authOptions: NextAuthOptions = {
+  pages: { signIn: "/signin" },
   providers: [
     AzureADProvider({
       clientId: process.env.AZURE_AD_CLIENT_ID!,
