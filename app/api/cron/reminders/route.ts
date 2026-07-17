@@ -1,3 +1,4 @@
+// paste into: app/api/cron/reminders/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import {
@@ -40,6 +41,11 @@ export async function GET(req: NextRequest) {
   for (const person of staff) {
     const reviewDate = nextAnniversary(person.startDate, now);
     const daysOut = Math.round((reviewDate.getTime() - now.getTime()) / DAY);
+
+    // Guard: no review inside the first ~10 months of employment. Covers future
+    // start dates (new hires not yet started) and prevents a "first anniversary"
+    // firing in the calendar year someone joins.
+    if (reviewDate.getTime() - person.startDate.getTime() < 300 * DAY) continue;
 
     // 1. Create the cycle + kickoff emails at T-21 days
     if (daysOut <= 21 && daysOut >= 0) {
